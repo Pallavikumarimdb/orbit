@@ -30,6 +30,7 @@ import { notFound, validationFailed } from '@orbit/shared/errors';
 import type { Principal } from '@orbit/shared/policy';
 import { branchName } from '@orbit/shared/utils';
 import { z } from 'zod';
+import { resolveIssueInstructions } from '../instructions.ts';
 import {
   resolveCycle,
   resolveLabelIds,
@@ -297,6 +298,9 @@ function registerGetIssue(server: McpServer, principal: Principal): void {
     },
     async (args) => {
       const issue = await getIssue(principal, args.issue);
+      const instructions = principal.isAgent
+        ? await resolveIssueInstructions(principal, issue)
+        : undefined;
       return {
         issue: {
           ...(await describeIssue(principal, issue)),
@@ -304,7 +308,9 @@ function registerGetIssue(server: McpServer, principal: Principal): void {
           labels: await issueLabelNames(principal, issue.id),
           relations: await issueRelationViews(principal, issue.id),
           attachments: (await listIssueAttachments(principal, issue.id)).map(describeAttachment),
+          ...(instructions === undefined ? {} : { instructions }),
         },
+        ...(instructions === undefined ? {} : { instructions }),
       };
     },
   );
